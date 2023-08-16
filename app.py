@@ -1,51 +1,18 @@
-# Put your app in here.
-from flask import Flask, request
-from operations import add, sub, mult, div
+from flask import Flask, render_template, request
+from flask_debugtoolbar import DebugToolbarExtension
+from stories import story 
+
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'secret'
 
-@app.route('/add')
-def add():
-    a = int(request.args.get("a"))
-    b = int(request.args.get("b"))
-    result = add(a, b)
+debug = DebugToolbarExtension(app)
 
-    return str(result)
+@app.route("/")
+def ask_questions():
+    prompts = story.prompts
+    return render_template("questions.html", prompts=prompts)
 
-@app.route('/sub')
-def sub():
-    a = int(request.args.get("a"))
-    b = int(request.args.get("b"))
-    result = sub(a, b)
-
-    return str(result)
-
-@app.route('/mult')
-def mult():
-    a = int(request.args.get("a"))
-    b = int(request.args.get("b"))
-    result = mult(a, b)
-
-    return str(result)
-
-@app.route('/div')
-def div():
-    a = int(request.args.get("a"))
-    b = int(request.args.get("b"))
-    result = div(a, b)
-
-    return str(result)
-   
-operators = {
-    "add":add,
-    "sub": sub,
-    "mult": mult,
-    "div": div,
-}
-
-@app.route("/math/<oper>")
-def math(oper):
-    a = int(request.args.get("a"))
-    b = int(request.args.get("b"))
-    result = operators[oper](a,b)
-
-    return str(result)
+@app.route("/story")
+def show_story():
+    text = story.generate(request.args)
+    return render_template("story.html", text=text)
