@@ -1,51 +1,60 @@
-# Put your app in here.
-from flask import Flask, request
-from operations import add, sub, mult, div
+from flask import Flask, request, render_template, redirect, flash, session
+from flask_debugtoolbar import DebugToolbarExtension
+from surveys import satisfaction_survey as survey
+
+RESPONSES_KEY = "responses"
 app = Flask(__name__)
 
-@app.route('/add')
-def add():
-    a = int(request.args.get("a"))
-    b = int(request.args.get("b"))
-    result = add(a, b)
+app.config['SECRET_KEY'] = 'secret'
+app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 
-    return str(result)
+debug = DebugToolbarExtension(app)
 
-@app.route('/sub')
-def sub():
-    a = int(request.args.get("a"))
-    b = int(request.args.get("b"))
-    result = sub(a, b)
 
-    return str(result)
+@app.route("/")
+def start_survey_page():
+    """Show survey homepage"""
+    return render_template("start_survey.html", survey=survey)
 
-@app.route('/mult')
-def mult():
-    a = int(request.args.get("a"))
-    b = int(request.args.get("b"))
-    result = mult(a, b)
+@app.route("/begin", methods=["POST"])
+def start_survey():
+    """Clear the session of responses"""
+    session[RESPONSES_KEY] = []
 
-    return str(result)
+    return redirect("/questions/0")
 
-@app.route('/div')
-def div():
-    a = int(request.args.get("a"))
-    b = int(request.args.get("b"))
-    result = div(a, b)
+@app.route('/answer', methods=["POST"])
+def next_question():
+    """Save response and continue to next question"""
+    choice = request.form['answer']
+    responses = session[RESPONSES_KEY]
+    responses.append(choice)
+    session[RESPONSES_KEY] = responses
 
-    return str(result)
-   
-operators = {
-    "add":add,
-    "sub": sub,
-    "mult": mult,
-    "div": div,
-}
+    if(len(responses) == len(survey.questions)):
+        return redirect("/complete")
+    
+    else:
+        return redirect(f'/question/{len(responses)}')
+    
+@app.route("/questions/<int:qid>")
+def show_question(qid):
+    """Go to current question"""
+    responses = session.get(RESPONSES_KEY)
+    if (responses is None):
+        return redirect("/")
+    
+    if (len(responses) == len(survey.questions)):
+        return redirect("/complete")
+    if (len(responses) != qid):
+        flash(f"Invalid question id: {qid}.")
+        return redirect(f"/questions/{len(responses)}")
+    
+    question = survey.questions[qid]
+    return render_template("questions.html", question_num=qid, question=question)
 
-@app.route("/math/<oper>")
-def math(oper):
-    a = int(request.args.get("a"))
-    b = int(request.args.get("b"))
-    result = operators[oper](a,b)
 
-    return str(result)
+@app.route("/complete")
+def complete_survey():
+    """Show thank you page at end of survey"""
+    return render_template("completion.html")
