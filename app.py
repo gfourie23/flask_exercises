@@ -1,51 +1,36 @@
-# Put your app in here.
-from flask import Flask, request
-from operations import add, sub, mult, div
+from flask import Flask, request, render_template, session, jsonify
+from boggle import Boggle
+
 app = Flask(__name__)
+app.config['SECRET_KEY'] = "secret"
 
-@app.route('/add')
-def add():
-    a = int(request.args.get("a"))
-    b = int(request.args.get("b"))
-    result = add(a, b)
+boggle_game = Boggle()
 
-    return str(result)
 
-@app.route('/sub')
-def sub():
-    a = int(request.args.get("a"))
-    b = int(request.args.get("b"))
-    result = sub(a, b)
+@app.route("/")
+def display_board():
+    board = boggle_game.make_board()
+    session['board'] = board
+    highscore = session.get("highscore", 0)
+    nplays = session.get("nplays", 0)
 
-    return str(result)
+    return render_template("index.html", board=board, highscore=highscore, nplays=nplays)
 
-@app.route('/mult')
-def mult():
-    a = int(request.args.get("a"))
-    b = int(request.args.get("b"))
-    result = mult(a, b)
+@app.route("/check-word")
+def check_word():
+    word = request.args["word"]
+    board = session["board"]
+    response = boggle_game.check_valid_word(board, word)
 
-    return str(result)
+    return jsonify({'result': response})
 
-@app.route('/div')
-def div():
-    a = int(request.args.get("a"))
-    b = int(request.args.get("b"))
-    result = div(a, b)
+@app.route("/post-score", methods=["POST"])
+def post_score():
+    score = request.json['score']
+    highscore = session.get("highscore", 0)
+    nplays = session.get("nplays", 0)
 
-    return str(result)
-   
-operators = {
-    "add":add,
-    "sub": sub,
-    "mult": mult,
-    "div": div,
-}
+    session['nplays'] = nplays + 1
+    session['highschore'] = max(score, highscore)
 
-@app.route("/math/<oper>")
-def math(oper):
-    a = int(request.args.get("a"))
-    b = int(request.args.get("b"))
-    result = operators[oper](a,b)
-
-    return str(result)
+    return jsonify(brokeRecord=score > highscore)
